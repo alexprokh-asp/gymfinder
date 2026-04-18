@@ -1,0 +1,23 @@
+name: Run Postman Tests
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Newman
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Run collection
+        run: |
+          newman run Postman/GYM_E2E_FLOW.postman_collection.json \
+            -e Postman/dev.postman_environment.json \
+            --env-var "apikey=${{ secrets.API_KEY }}" \
+            --reporters cli,htmlextra

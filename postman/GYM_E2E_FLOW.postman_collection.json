@@ -1,0 +1,1563 @@
+{
+  "info": {
+    "_postman_id": "3ccbb6a8-2825-4ea2-a71b-a3489be69071",
+    "name": "GYM E2E FLOW",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "45894867"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();\r",
+              "\r",
+              "// ✔ токен\r",
+              "pm.environment.set(\"access_token\", res.access_token);\r",
+              "\r",
+              "// 💾 сразу готовый Bearer (ВОТ ТО, ЧТО ТЫ ХОЧЕШЬ)\r",
+              "pm.environment.set(\"authorization\", \"Bearer \" + res.access_token);\r",
+              "\r",
+              "// ✔ админ ID (НЕ user_id!)\r",
+              "pm.environment.set(\"admin_id\", res.user.id);\r",
+              "\r",
+              "// ✔ refresh\r",
+              "pm.environment.set(\"refresh_token\", res.refresh_token);\r",
+              "\r",
+              "pm.test(\"Login success\", function () {\r",
+              "    pm.expect(res.access_token).to.exist;\r",
+              "    pm.expect(res.user).to.exist;\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"alex@gymfinder.com\",\r\n  \"password\": \"password123\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://uhkblrewoiwgahgvqosb.supabase.co/auth/v1/token?grant_type=password&apikey={{apikey}}",
+          "protocol": "https",
+          "host": [
+            "uhkblrewoiwgahgvqosb",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "auth",
+            "v1",
+            "token"
+          ],
+          "query": [
+            {
+              "key": "grant_type",
+              "value": "password"
+            },
+            {
+              "key": "apikey",
+              "value": "{{apikey}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Club",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const req = JSON.parse(pm.request.body.raw);\r",
+              "const res = pm.response.json()[0];\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+              "});\r",
+              "\r",
+              "pm.environment.set(\"club_id\", res.id);\r",
+              "\r",
+              "pm.test(\"ID saved\", function () {\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "});\r",
+              "\r",
+              "const strictFields = [\r",
+              "    \"name\",\r",
+              "    \"description\",\r",
+              "    \"address\",\r",
+              "    \"phone\",\r",
+              "    \"email\",\r",
+              "    \"website\",\r",
+              "    \"telegram\",\r",
+              "    \"working_hours\",\r",
+              "    \"schedule_page_url\",\r",
+              "    \"status\"\r",
+              "];\r",
+              "\r",
+              "strictFields.forEach(field => {\r",
+              "    pm.test(`${field} matches`, function () {\r",
+              "        pm.expect(res[field]).to.eql(req[field]);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "pm.test(\"lat/lng match\", function () {\r",
+              "    pm.expect(res.lat).to.be.closeTo(req.lat, 0.0001);\r",
+              "    pm.expect(res.lng).to.be.closeTo(req.lng, 0.0001);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"rating matches\", function () {\r",
+              "    pm.expect(Number(res.rating)).to.eql(Number(req.rating));\r",
+              "});\r",
+              "\r",
+              "pm.test(\"is_premium matches\", function () {\r",
+              "    pm.expect(res.is_premium).to.eql(req.is_premium);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"social_links match\", function () {\r",
+              "    Object.keys(req.social_links).forEach(key => {\r",
+              "        pm.expect(res.social_links[key]).to.eql(req.social_links[key]);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "pm.test(\"amenities match (unordered)\", function () {\r",
+              "    pm.expect(res.amenities).to.have.members(req.amenities);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"disciplines match (unordered)\", function () {\r",
+              "    pm.expect(res.disciplines).to.have.members(req.disciplines);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"price_list length\", function () {\r",
+              "    pm.expect(res.price_list.length).to.eql(req.price_list.length);\r",
+              "});\r",
+              "\r",
+              "req.price_list.forEach(reqItem => {\r",
+              "    const match = res.price_list.find(r =>\r",
+              "        r.service === reqItem.service &&\r",
+              "        Number(r.price) === Number(reqItem.price)\r",
+              "    );\r",
+              "\r",
+              "    pm.test(`price_list contains ${reqItem.service}`, function () {\r",
+              "        pm.expect(match).to.exist;\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "pm.test(\"server fields exist\", function () {\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "    pm.expect(res.created_at).to.exist;\r",
+              "    pm.expect(res.updated_at).to.exist;\r",
+              "});\r",
+              "\r",
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"name\": \"Atlas Strength Club\",\r\n  \"description\": \"<p>Современный спортивный клуб в Запорожье, ориентированный на силовые тренировки, восстановление и функциональный фитнес. Подходит как для новичков, так и для опытных атлетов.</p>\",\r\n  \"address\": \"Украина, Запорожье, проспект Металлургов, 88\",\r\n  \"lat\": 47.8671,\r\n  \"lng\": 35.1186,\r\n  \"rating\": 4.7,\r\n  \"phone\": \"+380 50 245 19 88\",\r\n  \"email\": \"atlas.zp.club.test@gmail.com\",\r\n  \"website\": \"https://atlas-strength-zp.example.com\",\r\n  \"telegram\": \"https://t.me/atlas_strength_zp\",\r\n  \"whatsapp\": \"https://wa.me/380502451988\",\r\n  \"social_links\": {\r\n    \"instagram\": \"https://instagram.com/atlas_strength_zp\",\r\n    \"vk\": \"https://vk.com/atlas_strength_zp\",\r\n    \"youtube\": \"https://youtube.com/@atlasstrengthzp\",\r\n    \"facebook\": \"https://facebook.com/atlas.strength.zp\"\r\n  },\r\n  \"amenities\": [\r\n    \"Бассейн\",\r\n    \"Кардио-зона\",\r\n    \"Спортивные площадки\",\r\n    \"Раздевалки\",\r\n    \"Детская комната\",\r\n    \"Фитнес-бар\",\r\n    \"Сейф\",\r\n    \"24/7 (Круглосуточно)\",\r\n    \"Аренда шкафчиков\",\r\n    \"Wi-Fi\",\r\n    \"Кафе\",\r\n    \"Парковка\",\r\n    \"Массажный кабинет\",\r\n    \"Групповые программы\",\r\n    \"Сауна\",\r\n    \"Тренажерный зал\",\r\n    \"Йога-студия\",\r\n    \"Солярий\",\r\n    \"Душевые\",\r\n    \"Прокат инвентаря\",\r\n    \"Полотенце\",\r\n    \"Питьевая вода\"\r\n  ],\r\n  \"working_hours\": \"Пн-Пт 07:00-23:00\\nСб-Вс 09:00-21:00\",\r\n  \"schedule_page_url\": \"https://atlas-strength-zp.example.com/schedule\",\r\n  \"price_list\": [\r\n    {\r\n      \"service\": \"Monthly membership\",\r\n      \"price\": 1500\r\n    },\r\n    {\r\n      \"service\": \"Personal training session\",\r\n      \"price\": 500\r\n    },\r\n    {\r\n      \"service\": \"Smile boost session\",\r\n      \"price\": 1000\r\n    }\r\n  ],\r\n  \"is_premium\": true,\r\n  \"external_ids\": {\r\n    \"yandex\": \"atlas-zp\",\r\n    \"yandex_reviews\": \"atlas-zp-reviews\"\r\n  },\r\n  \"disciplines\": [\r\n    \"fitness\",\r\n    \"strength training\",\r\n    \"functional training\",\r\n    \"cross training\"\r\n  ],\r\n  \"photo_paths\": [],\r\n  \"status\": \"draft\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURI}}/clubs?select=*",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "clubs"
+          ],
+          "query": [
+            {
+              "key": "select",
+              "value": "*"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Trainer",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const req = JSON.parse(pm.request.body.raw);\r",
+              "const res = pm.response.json()[0];\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"Save trainer id\", function () {\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "    pm.environment.set(\"trainer_id\", res.id);\r",
+              "});\r",
+              "\r",
+              "const strictFields = [\r",
+              "    \"full_name\",\r",
+              "    \"bio\",\r",
+              "    \"specialization\",\r",
+              "    \"video_url\",\r",
+              "    \"profi_ru_url\",\r",
+              "    \"birth_date\",\r",
+              "    \"external_id\"\r",
+              "];\r",
+              "\r",
+              "strictFields.forEach(field => {\r",
+              "    pm.test(`${field} matches`, function () {\r",
+              "        pm.expect(res[field]).to.eql(req[field]);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "pm.test(\"rating matches\", function () {\r",
+              "    pm.expect(Number(res.rating)).to.eql(Number(req.rating));\r",
+              "});\r",
+              "\r",
+              "pm.test(\"avatar_url matches\", function () {\r",
+              "    pm.expect(res.avatar_url).to.eql(req.avatar_url);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"social_links match\", function () {\r",
+              "    Object.keys(req.social_links).forEach(key => {\r",
+              "        pm.expect(res.social_links[key]).to.eql(req.social_links[key]);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "pm.test(\"achievements match (unordered)\", function () {\r",
+              "    pm.expect(res.achievements).to.have.members(req.achievements);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"server fields exist\", function () {\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "    pm.expect(res.created_at).to.exist;\r",
+              "});\r",
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"full_name\": \"Иванов Иван Иванович\",\r\n  \"specialization\": \"Бокс, Кикбоксинг, ОФП\",\r\n  \"bio\": \"Профессиональный тренер с 8-летним опытом работы. Специализируется на постановке техники удара, развитии выносливости и функциональной подготовке. Выпускник Национального университета физического воспитания и спорта. Работал с любителями и профессиональными спортсменами. Индивидуальный подход к каждому клиенту.\",\r\n  \"video_url\": \"https://youtube.com/@ivanovcoach\",\r\n  \"profi_ru_url\": \"https://profi.ru/profile/ivanov_ii\",\r\n  \"social_links\": {\r\n    \"instagram\": \"https://instagram.com/ivanov_coach\",\r\n    \"vk\": \"https://vk.com/ivanov_coach\",\r\n    \"telegram\": \"https://t.me/ivanov_coach\",\r\n    \"whatsapp\": \"https://wa.me/79001234567\",\r\n    \"youtube\": \"https://youtube.com/@ivanovcoach\"\r\n  },\r\n  \"achievements\": [\r\n    \"КМС по боксу\",\r\n    \"Победитель областного чемпионата по кикбоксингу 2018\",\r\n    \"Сертифицированный тренер по функциональному тренингу\"\r\n  ],\r\n  \"birth_date\": \"1990-05-14\",\r\n  \"avatar_url\": \"https://example.com/avatars/ivanov.jpg\",\r\n  \"external_id\": \"trainer_ivanov_001\",\r\n  \"rating\": 4.7\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURI}}/trainers?select=*",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "trainers"
+          ],
+          "query": [
+            {
+              "key": "select",
+              "value": "*"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Trainer Attach To Club",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const req = JSON.parse(pm.request.body.raw);\r",
+              "const res = pm.response.json()[0];\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"trainer_id matches\", function () {\r",
+              "    pm.expect(res.trainer_id).to.eql(req.trainer_id);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"club_id matches\", function () {\r",
+              "    pm.expect(res.club_id).to.eql(req.club_id);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"discipline_id is null\", function () {\r",
+              "    pm.expect(res.discipline_id).to.be.null;\r",
+              "});\r",
+              "\r",
+              "pm.test(\"created_at exists\", function () {\r",
+              "    pm.expect(res.created_at).to.exist;\r",
+              "    pm.expect(res.created_at).to.be.a(\"string\");\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"trainer_id\": \"{{trainer_id}}\",\r\n  \"club_id\": \"{{club_id}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURI}}/trainer_club_memberships",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "trainer_club_memberships"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create News",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const req = JSON.parse(pm.request.body.raw);\r",
+              "const res = pm.response.json()[0];\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"Save news id\", function () {\r",
+              "    const res = pm.response.json()[0];\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "    pm.environment.set(\"news_id\", res.id);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"id exists\", function () {\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "});\r",
+              "\r",
+              "const strictFields = [\r",
+              "    \"title\",\r",
+              "    \"content\",\r",
+              "    \"club_id\",\r",
+              "    \"published_at\",\r",
+              "    \"is_published\"\r",
+              "];\r",
+              "\r",
+              "strictFields.forEach(field => {\r",
+              "    pm.test(`${field} matches`, function () {\r",
+              "        pm.expect(res[field]).to.eql(req[field]);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "pm.test(\"photo_paths matches (array)\", function () {\r",
+              "    pm.expect(res.photo_paths).to.be.an(\"array\");\r",
+              "    pm.expect(res.photo_paths).to.have.members(req.photo_paths);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"photo_path exists (nullable field)\", function () {\r",
+              "    pm.expect(res).to.have.property(\"photo_path\");\r",
+              "});\r",
+              "\r",
+              "pm.test(\"server fields exist\", function () {\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "    pm.expect(res.created_at || res.id).to.exist;\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"title\": \"Тренировка по боксу в выходные\",\r\n  \"content\": \"<p>Приглашаем всех на открытую тренировку. Работа над техникой и выносливостью.</p>\",\r\n  \"club_id\": \"{{club_id}}\",\r\n  \"photo_paths\": [],\r\n  \"published_at\": null,\r\n  \"is_published\": false\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURI}}/news",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "news"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create SpecOf",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const req = JSON.parse(pm.request.body.raw);\r",
+              "const res = pm.response.json()[0];\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"Save special offer id\", function () {\r",
+              "    const res = pm.response.json()[0];\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "    pm.environment.set(\"offer_id\", res.id);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"id exists\", function () {\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "});\r",
+              "\r",
+              "const strictFields = [\r",
+              "    \"title\",\r",
+              "    \"description\",\r",
+              "    \"club_id\",\r",
+              "    \"valid_until\",\r",
+              "    \"is_published\"\r",
+              "];\r",
+              "\r",
+              "strictFields.forEach(field => {\r",
+              "    pm.test(`${field} matches`, function () {\r",
+              "        pm.expect(res[field]).to.eql(req[field]);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "pm.test(\"photo_paths matches (array)\", function () {\r",
+              "    pm.expect(res.photo_paths).to.be.an(\"array\");\r",
+              "    pm.expect(res.photo_paths).to.have.members(req.photo_paths);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"photo_path exists\", function () {\r",
+              "    pm.expect(res).to.have.property(\"photo_path\");\r",
+              "});\r",
+              "\r",
+              "pm.test(\"created_at exists\", function () {\r",
+              "    pm.expect(res.created_at).to.exist;\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"title\": \"Скидка на годовые абонементы\",\r\n  \"description\": \"<p>Только до конца месяца действует скидка 30% на все годовые абонементы в клубе.</p>\",\r\n  \"club_id\": \"{{club_id}}\",\r\n  \"valid_until\": \"2029-01-01\",\r\n  \"is_published\": false,\r\n  \"photo_paths\": []\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURI}}/special_offers",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "special_offers"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Event",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const req = JSON.parse(pm.request.body.raw);\r",
+              "const res = pm.response.json()[0];\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"id exists\", function () {\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "});\r",
+              "\r",
+              "// 🔥 СОХРАНЯЕМ ID\r",
+              "pm.environment.set(\"event_id\", res.id);\r",
+              "\r",
+              "// 🧠 helper для дат (фикс форматов +00:00 vs .000Z)\r",
+              "function normalize(date) {\r",
+              "    return new Date(date).toISOString();\r",
+              "}\r",
+              "\r",
+              "const strictFields = [\r",
+              "    \"title\",\r",
+              "    \"description\",\r",
+              "    \"address\",\r",
+              "    \"lat\",\r",
+              "    \"lng\",\r",
+              "    \"club_id\",\r",
+              "    \"discipline_id\",\r",
+              "    \"registration_url\",\r",
+              "    \"contact_phone\",\r",
+              "    \"contact_email\",\r",
+              "    \"is_for_children\",\r",
+              "    \"status\"\r",
+              "];\r",
+              "\r",
+              "// обычные поля (строгое сравнение)\r",
+              "strictFields.forEach(field => {\r",
+              "    pm.test(`${field} matches`, function () {\r",
+              "        pm.expect(res[field]).to.eql(req[field]);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "// 📅 даты (фикс timezone + ISO различий)\r",
+              "pm.test(\"start_date matches\", function () {\r",
+              "    pm.expect(normalize(res.start_date))\r",
+              "        .to.eql(normalize(req.start_date));\r",
+              "});\r",
+              "\r",
+              "pm.test(\"end_date matches\", function () {\r",
+              "    pm.expect(normalize(res.end_date))\r",
+              "        .to.eql(normalize(req.end_date));\r",
+              "});\r",
+              "\r",
+              "// 🖼 массив фото\r",
+              "pm.test(\"photo_paths matches (array)\", function () {\r",
+              "    pm.expect(res.photo_paths).to.be.an(\"array\");\r",
+              "    pm.expect(res.photo_paths).to.have.members(req.photo_paths);\r",
+              "});\r",
+              "\r",
+              "// 💰 price_list\r",
+              "pm.test(\"price_list matches\", function () {\r",
+              "    pm.expect(res.price_list.length).to.eql(req.price_list.length);\r",
+              "\r",
+              "    req.price_list.forEach(reqItem => {\r",
+              "        const match = res.price_list.find(r =>\r",
+              "            r.service === reqItem.service &&\r",
+              "            Number(r.price) === Number(reqItem.price) &&\r",
+              "            r.currency === reqItem.currency\r",
+              "        );\r",
+              "\r",
+              "        pm.expect(match, `price_list missing ${reqItem.service}`).to.exist;\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "// 🧾 системные поля\r",
+              "pm.test(\"server timestamps exist\", function () {\r",
+              "    pm.expect(res.created_at).to.exist;\r",
+              "    pm.expect(res.updated_at).to.exist;\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"title\": \"Турнир по функциональному тренингу\",\r\n  \"description\": \"<p>Открытый турнир для всех уровней подготовки. Работа на выносливость, силу и технику.</p>\",\r\n  \"address\": \"Украина, Киев, ул. Крещатик, 22\",\r\n  \"lat\": 50.4451,\r\n  \"lng\": 30.5234,\r\n  \"start_date\": \"2026-04-18T07:09:00.000Z\",\r\n  \"end_date\": \"2026-04-18T10:09:00.000Z\",\r\n  \"price_list\": [\r\n    {\r\n      \"service\": \"Участие\",\r\n      \"price\": \"200\",\r\n      \"currency\": \"EUR\"\r\n    }\r\n  ],\r\n  \"club_id\": \"{{club_id}}\",\r\n  \"discipline_id\": \"fd74d0c1-d58e-4bd3-8fea-eab5818d2400\",\r\n  \"registration_url\": \"https://example.com/register\",\r\n  \"contact_phone\": \"+380 50 245 19 88\",\r\n  \"contact_email\": \"atlas.zp.club.test@gmail.com\",\r\n  \"is_for_children\": false,\r\n  \"photo_paths\": [],\r\n  \"status\": \"draft\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURI}}/events",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "events"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Charity",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const req = JSON.parse(pm.request.body.raw);\r",
+              "const res = pm.response.json()[0];\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"id exists\", function () {\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "});\r",
+              "\r",
+              "// 🔥 СОХРАНЯЕМ ID\r",
+              "pm.environment.set(\"charity_id\", res.id);\r",
+              "\r",
+              "const strictFields = [\r",
+              "    \"name\",\r",
+              "    \"description\",\r",
+              "    \"website\",\r",
+              "    \"is_published\",\r",
+              "    \"sort_order\",\r",
+              "    \"clicks_count\"\r",
+              "];\r",
+              "\r",
+              "strictFields.forEach(field => {\r",
+              "    pm.test(`${field} matches`, function () {\r",
+              "        pm.expect(res[field]).to.eql(req[field]);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "// 💰 total_raised (важно — может быть decimal)\r",
+              "pm.test(\"total_raised matches\", function () {\r",
+              "    pm.expect(Number(res.total_raised)).to.eql(Number(req.total_raised));\r",
+              "});\r",
+              "\r",
+              "// 🖼 массив фото\r",
+              "pm.test(\"photo_paths matches\", function () {\r",
+              "    pm.expect(res.photo_paths).to.be.an(\"array\");\r",
+              "    pm.expect(res.photo_paths).to.have.members(req.photo_paths);\r",
+              "});\r",
+              "\r",
+              "// 🧾 системные поля\r",
+              "pm.test(\"server fields exist\", function () {\r",
+              "    pm.expect(res.updated_at).to.exist;\r",
+              "});\r",
+              "\r",
+              "// 🖼 logo_path (nullable поле)\r",
+              "pm.test(\"logo_path exists\", function () {\r",
+              "    pm.expect(res).to.have.property(\"logo_path\");\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"name\": \"Фонд помощи спортсменам\",\r\n  \"description\": \"<p>Сбор средств на поддержку молодых спортсменов и развитие спортивной инфраструктуры.</p>\",\r\n  \"website\": \"https://californiaboxing.ru/?utm_source=map\",\r\n  \"photo_paths\": [],\r\n  \"total_raised\": 332323232,\r\n  \"clicks_count\": 0,\r\n  \"sort_order\": 0,\r\n  \"is_published\": false\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURI}}/charity_funds",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "charity_funds"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Trainer Delete Attach2Club",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Deleted successfully\", function () {\r",
+              "    pm.expect(pm.response.code).to.eql(204);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "{{baseURI}}/trainer_club_memberships?trainer_id=eq.{{trainer_id}}&club_id=eq.{{club_id}}",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "trainer_club_memberships"
+          ],
+          "query": [
+            {
+              "key": "trainer_id",
+              "value": "eq.{{trainer_id}}"
+            },
+            {
+              "key": "club_id",
+              "value": "eq.{{club_id}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Trainer Delete",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Deleted successfully\", function () {\r",
+              "    pm.expect(pm.response.code).to.eql(204);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "{{baseURI}}/trainers?id=eq.{{trainer_id}}",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "trainers"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "eq.{{trainer_id}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete News",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Delete news successful\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "{{baseURI}}/news?id=eq.{{news_id}}",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "news"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "eq.{{news_id}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete SpecOf",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Delete SpecOf successful\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "{{baseURI}}/special_offers?id=eq.{{offer_id}}",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "special_offers"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "eq.{{offer_id}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Event",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Delete Event successful\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "{{baseURI}}/events?id=eq.{{event_id}}",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "events"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "eq.{{event_id}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Charity",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Delete Charity successful\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "{{baseURI}}/charity_funds?id=eq.{{charity_id}}",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "charity_funds"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "eq.{{charity_id}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Exclusive-offers",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const req = JSON.parse(pm.request.body.raw);\r",
+              "const res = pm.response.json();\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"id exists\", function () {\r",
+              "    pm.expect(res[0].id).to.exist;\r",
+              "});\r",
+              "\r",
+              "// Validate exclusive_offer length matches\r",
+              "pm.test(\"exclusive_offer length matches\", function () {\r",
+              "    pm.expect(res[0].exclusive_offer.length).to.eql(req.exclusive_offer.length);\r",
+              "});\r",
+              "\r",
+              "// Check each item in exclusive_offer\r",
+              "req.exclusive_offer.forEach(reqItem => {\r",
+              "    const match = res[0].exclusive_offer.find(r =>\r",
+              "        r.title === reqItem.title &&\r",
+              "        r.description === reqItem.description &&\r",
+              "        String(r.price).includes(String(reqItem.price))\r",
+              "    );\r",
+              "\r",
+              "    pm.test(`exclusive_offer contains ${reqItem.title}`, function () {\r",
+              "        pm.expect(match).to.exist;\r",
+              "    });\r",
+              "});\r",
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"exclusive_offer\": [\r\n    {\r\n      \"title\": \"ГОДОВОЙ АБОНЕМЕНТ\",\r\n      \"price\": \"777 ₽\",\r\n      \"description\": \"Полный доступ ко всем зонам клуба, без ограничений по времени\"\r\n    },\r\n    {\r\n      \"title\": \"ПЕРСОНАЛЬНЫЙ ПАКЕТ START\",\r\n      \"price\": \"999 ₽\",\r\n      \"description\": \"5 персональных тренировок с тренером + консультация по питанию\"\r\n    }\r\n  ]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURI}}/clubs?id=eq.{{club_id}}",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "clubs"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "eq.{{club_id}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Exclusive-offers",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json()[0];\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.eql(200);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"response exists\", function () {\r",
+              "    pm.expect(res).to.exist;\r",
+              "});\r",
+              "\r",
+              "pm.test(\"id exists\", function () {\r",
+              "    pm.expect(res.id).to.exist;\r",
+              "});\r",
+              "\r",
+              "pm.test(\"exclusive_offer is null\", function () {\r",
+              "    pm.expect(res.exclusive_offer).to.eql(null);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"exclusive_offer\": null\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURI}}/clubs?id=eq.{{club_id}}",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "clubs"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "eq.{{club_id}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const req = JSON.parse(pm.request.body.raw);\r",
+              "const res = pm.response.json();\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.eql(200);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"success is true\", function () {\r",
+              "    pm.expect(res.success).to.eql(true);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"user exists\", function () {\r",
+              "    pm.expect(res.user, \"user missing\").to.exist;\r",
+              "});\r",
+              "\r",
+              "// 🔥 сохраняем ID\r",
+              "if (res.user && res.user.id) {\r",
+              "    pm.environment.set(\"user_id\", res.user.id);\r",
+              "}\r",
+              "\r",
+              "pm.test(\"user id exists\", function () {\r",
+              "    pm.expect(res.user.id).to.exist;\r",
+              "});\r",
+              "\r",
+              "pm.test(\"email matches\", function () {\r",
+              "    pm.expect(res.user.email).to.eql(req.email);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"full_name matches\", function () {\r",
+              "    pm.expect(res.user.full_name).to.eql(req.full_name);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"role matches\", function () {\r",
+              "    pm.expect(res.user.role).to.eql(req.role);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"user_{{timestamp}}@test.com\",\r\n  \"password\": \"Qwerty123!\",\r\n  \"full_name\": \"Иван Иванов\",\r\n  \"role\": \"club_member\",\r\n  \"club_ids\": []\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://uhkblrewoiwgahgvqosb.supabase.co/functions/v1/create-user-and-profile",
+          "protocol": "https",
+          "host": [
+            "uhkblrewoiwgahgvqosb",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "create-user-and-profile"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "User Delete",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const req = JSON.parse(pm.request.body.raw);\r",
+              "const res = pm.response.json();\r",
+              "\r",
+              "pm.test(\"Status is success\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"success is true\", function () {\r",
+              "    pm.expect(res.success).to.eql(true);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"message exists\", function () {\r",
+              "    pm.expect(res.message).to.exist;\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"user_id\": \"{{user_id}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://uhkblrewoiwgahgvqosb.supabase.co/functions/v1/delete-user-and-profile",
+          "protocol": "https",
+          "host": [
+            "uhkblrewoiwgahgvqosb",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "delete-user-and-profile"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Club",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Deleted Club successfully\", function () {\r",
+              "    pm.expect(pm.response.code).to.eql(204);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{apikey}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{authorization}}",
+            "type": "text"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "{{baseURI}}/clubs?id=eq.{{club_id}}",
+          "host": [
+            "{{baseURI}}"
+          ],
+          "path": [
+            "clubs"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "eq.{{club_id}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
