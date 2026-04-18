@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
   schedule:
-    - cron: "0 15 * * *"
+    - cron: "0 16 * * *"   
 
 jobs:
   test:
@@ -19,14 +19,17 @@ jobs:
 
       - name: Run collection
         run: |
+          mkdir -p docs
           newman run Postman/GYM_E2E_FLOW.postman_collection.json \
             -e Postman/dev.postman_environment.json \
             --env-var "apikey=${{ secrets.API_KEY }}" \
             --reporters cli,htmlextra \
             --reporter-htmlextra-export docs/report.html
 
-      - name: Upload report
-        uses: actions/upload-artifact@v4
-        with:
-          name: postman-report
-          path: docs/report.html
+      - name: Commit report to repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add docs/report.html
+          git commit -m "chore: update postman report" || echo "no changes"
+          git push
